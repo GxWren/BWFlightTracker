@@ -1,0 +1,48 @@
+[project]
+name = "bw-flight-tracker"
+version = "0.1.0"
+description = "Responsive aircraft-overhead tracker"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "jinja2>=3.1",
+  "sqlalchemy>=2.0",
+  "alembic>=1.13",
+  "httpx>=0.27",
+  "aiosqlite>=0.19",
+  "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2", "pytest-asyncio>=0.23", "ruff>=0.5", "mypy>=1.10", "httpx>=0.27"]
+
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["bw_flight_tracker"]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[[tool.mypy.overrides]]
+module = ["fastapi", "fastapi.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bw_flight_tracker.main"
+disable_error_code = ["untyped-decorator"]
