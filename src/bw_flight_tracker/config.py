@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     airplanes_live_ca_bundle: str | None = None
     enrichment_provider: Literal["mock", "disabled", "adsbdb"] = "mock"
     adsbdb_base_url: str = "https://api.adsbdb.com/v0/"
+    adsbdb_verify_tls: bool = True
+    adsbdb_ca_bundle: str | None = None
+    enrichment_cache_seconds: int = Field(default=900, ge=60, le=86400)
     geocoder_provider: str = "disabled"
     geocoder_api_key: SecretStr | None = None
     admin_token: SecretStr | None = None

@@ -50,7 +50,7 @@ class AirplanesLiveProvider:
 
     def _parse_payload(self, payload: dict[str, Any]) -> list[AircraftState]:
         now = datetime.now(UTC)
-        aircraft_rows = payload.get("aircraft", [])
+        aircraft_rows = payload.get("aircraft", payload.get("ac", []))
         if not isinstance(aircraft_rows, list):
             return []
 

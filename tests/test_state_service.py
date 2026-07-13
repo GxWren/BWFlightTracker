@@ -3,6 +3,7 @@ import asyncio
 import httpx
 
 from bw_flight_tracker.config import Settings
+from bw_flight_tracker.domain.models import AircraftState, EnrichedFlight
 from bw_flight_tracker.services.state import StateService
 
 
@@ -58,3 +59,39 @@ def test_provider_http_error_returns_waiting_state() -> None:
     assert state["primary"] is None
     assert state["provider"]["stale"] is True  # type: ignore[index]
     assert state["provider"]["error"] == "provider_unavailable"  # type: ignore[index]
+
+
+def test_only_primary_aircraft_is_enriched() -> None:
+    class CountingEnrichment:
+        def __init__(self) -> None:
+            self.requests: list[str] = []
+
+        async def enrich(self, aircraft: AircraftState) -> EnrichedFlight:
+            self.requests.append(aircraft.icao_hex)
+            return EnrichedFlight(
+                "test",
+                aircraft.observed_at_utc,
+                airline_name="Selected Air",
+                flight_identifier=aircraft.callsign,
+            )
+
+    settings = Settings(
+        aircraft_provider="mock",
+        mock_scenario="multiple_competing",
+        home_latitude=41.88,
+        home_longitude=-87.63,
+        detection_radius_miles=10,
+    )
+    service = StateService(settings)
+    enrichment = CountingEnrichment()
+    service.enrichment = enrichment  # type: ignore[assignment]
+
+    state = asyncio.run(service.current_state("viewer-a"))
+
+    assert len(enrichment.requests) == 1
+    assert state["primary"]["airline_name"] == "Selected Air"  # type: ignore[index]
+    assert all(
+        aircraft["airline_name"] is None
+        for aircraft in state["nearby"]  # type: ignore[union-attr]
+        if aircraft["icao_hex"] != state["primary"]["icao_hex"]  # type: ignore[index]
+    )

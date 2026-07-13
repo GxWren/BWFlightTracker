@@ -16,6 +16,8 @@ Open <http://localhost:8000>. Use `AIRCRAFT_PROVIDER=mock` until Phase 2 live pr
 
 To test live telemetry, set `AIRCRAFT_PROVIDER=airplanes_live` in `.env` and restart Uvicorn. The app calls Airplanes.live's point endpoint near the configured home coordinates, then applies the local distance, freshness, altitude, and commercial-aircraft filters before rendering public state.
 
+To test selected-aircraft enrichment, set `ENRICHMENT_PROVIDER=adsbdb`. The app looks up details only for the selected primary aircraft and caches them for `ENRICHMENT_CACHE_SECONDS`; selecting a different nearby aircraft triggers a lookup for that aircraft.
+
 ## Docker workflow
 
 ```bash

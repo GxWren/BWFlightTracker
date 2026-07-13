@@ -48,3 +48,22 @@ def test_eligible_filters_to_commercial_inside_radius() -> None:
         -87.63,
     )
     assert [c.aircraft.icao_hex for c in eligible_candidates([private, commercial], 10)] == ["a"]
+
+
+def test_eligible_excludes_grounded_aircraft() -> None:
+    grounded = compute_candidate(
+        AircraftState(
+            "g",
+            41.89,
+            -87.64,
+            datetime.now(UTC),
+            callsign="AAL123",
+            altitude_ft=0,
+            on_ground=True,
+            position_age_seconds=1,
+        ),
+        41.88,
+        -87.63,
+    )
+
+    assert eligible_candidates([grounded], 10) == []

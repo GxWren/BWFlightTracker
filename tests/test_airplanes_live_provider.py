@@ -91,6 +91,26 @@ def test_airplanes_live_provider_skips_rows_without_position() -> None:
     assert aircraft[0].on_ground is True
 
 
+def test_airplanes_live_provider_accepts_live_ac_payload_key() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"ac": [{"hex": "a1b2c3", "lat": 41.9, "lon": -87.65, "seen_pos": 1}]},
+        )
+
+    settings = Settings(aircraft_provider="airplanes_live")
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = AirplanesLiveProvider(settings, client)
+
+    try:
+        aircraft = asyncio.run(provider.fetch_aircraft())
+    finally:
+        asyncio.run(client.aclose())
+
+    assert len(aircraft) == 1
+    assert aircraft[0].icao_hex == "a1b2c3"
+
+
 def test_airplanes_live_provider_uses_ca_bundle_before_verify_flag() -> None:
     settings = Settings(
         aircraft_provider="airplanes_live",

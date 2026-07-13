@@ -130,6 +130,8 @@ def eligible_candidates(
     eligible = []
     for candidate in candidates:
         aircraft = candidate.aircraft
+        if aircraft.on_ground:
+            continue
         if candidate.computed.horizontal_distance_miles > radius_miles:
             continue
         if (

@@ -1,14 +1,19 @@
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 
 from bw_flight_tracker.config import Settings
-from bw_flight_tracker.domain.models import EnrichedFlight, FlightCandidate
+from bw_flight_tracker.domain.models import AircraftState, EnrichedFlight, FlightCandidate
 from bw_flight_tracker.domain.primary_selection import PrimarySelectionEngine
 from bw_flight_tracker.domain.selection import compute_candidate, eligible_candidates
+from bw_flight_tracker.providers.adsbdb import AdsbdbEnrichmentProvider
 from bw_flight_tracker.providers.airplanes_live import AirplanesLiveProvider
 from bw_flight_tracker.providers.mock import MockAircraftProvider, MockEnrichmentProvider
+
+
+class EnrichmentProvider(Protocol):
+    async def enrich(self, aircraft: AircraftState) -> EnrichedFlight | None: ...
 
 
 class StateService:
@@ -19,7 +24,7 @@ class StateService:
             if settings.aircraft_provider == "airplanes_live"
             else MockAircraftProvider(settings.mock_scenario)
         )
-        self.enrichment = MockEnrichmentProvider()
+        self.enrichment = self._build_enrichment_provider(settings)
         self.manual_icao_by_viewer: dict[str, str] = {}
         self.selection_engine = PrimarySelectionEngine(
             minimum_hold_seconds=settings.automatic_hold_seconds,
@@ -47,13 +52,13 @@ class StateService:
             min_altitude_ft=self.settings.min_altitude_ft,
             max_altitude_ft=self.settings.max_altitude_ft,
         )
-        enriched = {c.aircraft.icao_hex: await self.enrichment.enrich(c.aircraft) for c in eligible}
         manual_icao = self.manual_icao_by_viewer.get(viewer_id)
         automatic_selection = self.selection_engine.select(eligible)
         primary = (
             next((c for c in eligible if c.aircraft.icao_hex == manual_icao), None)
             or automatic_selection.candidate
         )
+        primary_enrichment = await self._enrich_primary(primary)
         self.last_update = datetime.now(UTC)
         stale = (
             bool(aircraft)
@@ -69,13 +74,23 @@ class StateService:
                 "error": provider_error,
             },
             "selection_mode": "manual" if manual_icao and primary else "automatic",
-            "primary": self._serialize(
-                primary, enriched.get(primary.aircraft.icao_hex) if primary else None
-            )
-            if primary
-            else None,
-            "nearby": [self._serialize(c, enriched.get(c.aircraft.icao_hex)) for c in eligible],
+            "primary": self._serialize(primary, primary_enrichment) if primary else None,
+            "nearby": [
+                self._serialize(c, primary_enrichment if c is primary else None) for c in eligible
+            ],
         }
+
+    def _build_enrichment_provider(self, settings: Settings) -> EnrichmentProvider | None:
+        if settings.enrichment_provider == "adsbdb":
+            return AdsbdbEnrichmentProvider(settings)
+        if settings.enrichment_provider == "disabled":
+            return None
+        return MockEnrichmentProvider()
+
+    async def _enrich_primary(self, primary: FlightCandidate | None) -> EnrichedFlight | None:
+        if primary is None or self.enrichment is None:
+            return None
+        return await self.enrichment.enrich(primary.aircraft)
 
     def select_manual(self, viewer_id: str, icao_hex: str | None = None) -> None:
         if icao_hex is None:
