@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>document.documentElement.dataset.theme=localStorage.getItem('theme')||'system';</script>
+  <title>BW Flight Tracker</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header><h1>BW Flight Tracker</h1><button id="theme">Toggle theme</button></header>
+<main>
+  <section class="board" aria-live="polite">
+    <p class="eyebrow" id="mode">Automatic selection</p>
+    <h2 id="flight">Waiting for aircraft</h2>
+    <div class="route"><span id="origin">—</span><span>→</span><span id="destination">—</span></div>
+    <dl class="facts" id="facts"></dl>
+  </section>
+  <section><h2>Nearby aircraft</h2><div id="nearby" class="nearby"></div></section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
