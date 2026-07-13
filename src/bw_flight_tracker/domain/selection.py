@@ -126,13 +126,10 @@ def eligible_candidates(
     commercial_only: bool = True,
     min_altitude_ft: int = 1000,
     max_altitude_ft: int = 60000,
-    max_position_age_seconds: float = 20,
 ) -> list[FlightCandidate]:
     eligible = []
     for candidate in candidates:
         aircraft = candidate.aircraft
-        if aircraft.position_age_seconds > max_position_age_seconds:
-            continue
         if candidate.computed.horizontal_distance_miles > radius_miles:
             continue
         if (
