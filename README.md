@@ -12,7 +12,7 @@ Copy-Item .env.example .env
 uvicorn bw_flight_tracker.main:app --reload
 ```
 
-Open <http://localhost:8000>. Use `AIRCRAFT_PROVIDER=mock` until Phase 2 live provider work begins.
+Open <http://localhost:8000>. Use `AIRCRAFT_PROVIDER=mock` until Phase 2 live provider work begins. Set `MOCK_SCENARIO` to exercise the deterministic scenarios documented in `docs/mock-scenarios.md`.
 
 ## Docker workflow
 
