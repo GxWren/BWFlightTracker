@@ -12,6 +12,15 @@ class Settings(BaseSettings):
     app_base_url: str = "http://localhost:8000"
     database_url: str = "sqlite:///./data/bw_flight_tracker.db"
     aircraft_provider: Literal["mock", "airplanes_live"] = "mock"
+    mock_scenario: Literal[
+        "no_flights",
+        "one_commercial",
+        "multiple_competing",
+        "missing_route",
+        "private_aircraft",
+        "stale_provider",
+        "provider_recovery",
+    ] = "multiple_competing"
     airplanes_live_base_url: str = "https://api.airplanes.live/v2/"
     enrichment_provider: Literal["mock", "disabled", "adsbdb"] = "mock"
     adsbdb_base_url: str = "https://api.adsbdb.com/v0/"

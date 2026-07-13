@@ -1,6 +1,9 @@
 from datetime import UTC, datetime
+from typing import Any
 
 from bw_flight_tracker.config import Settings
+from bw_flight_tracker.domain.models import EnrichedFlight, FlightCandidate
+from bw_flight_tracker.domain.primary_selection import PrimarySelectionEngine
 from bw_flight_tracker.domain.selection import compute_candidate, eligible_candidates
 from bw_flight_tracker.providers.mock import MockAircraftProvider, MockEnrichmentProvider
 
@@ -8,28 +11,48 @@ from bw_flight_tracker.providers.mock import MockAircraftProvider, MockEnrichmen
 class StateService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.provider = MockAircraftProvider()
+        self.provider = MockAircraftProvider(settings.mock_scenario)
         self.enrichment = MockEnrichmentProvider()
-        self.manual_icao: str | None = None
+        self.manual_icao_by_viewer: dict[str, str] = {}
+        self.selection_engine = PrimarySelectionEngine(
+            minimum_hold_seconds=settings.automatic_hold_seconds,
+            switch_improvement_ratio=settings.switch_improvement_ratio,
+        )
         self.last_update: datetime | None = None
 
-    async def current_state(self) -> dict[str, object]:
+    async def current_state(self, viewer_id: str = "default") -> dict[str, object]:
         aircraft = await self.provider.fetch_aircraft()
+        fresh_aircraft = [
+            a for a in aircraft if a.position_age_seconds <= self.settings.stale_position_seconds
+        ]
         candidates = [
             compute_candidate(a, self.settings.home_latitude, self.settings.home_longitude)
-            for a in aircraft
+            for a in fresh_aircraft
         ]
-        eligible = eligible_candidates(candidates, self.settings.detection_radius_miles)
+        eligible = eligible_candidates(
+            candidates,
+            self.settings.detection_radius_miles,
+            min_altitude_ft=self.settings.min_altitude_ft,
+            max_altitude_ft=self.settings.max_altitude_ft,
+        )
         enriched = {c.aircraft.icao_hex: await self.enrichment.enrich(c.aircraft) for c in eligible}
-        primary = next((c for c in eligible if c.aircraft.icao_hex == self.manual_icao), None) or (
-            eligible[0] if eligible else None
+        manual_icao = self.manual_icao_by_viewer.get(viewer_id)
+        automatic_selection = self.selection_engine.select(eligible)
+        primary = (
+            next((c for c in eligible if c.aircraft.icao_hex == manual_icao), None)
+            or automatic_selection.candidate
         )
         self.last_update = datetime.now(UTC)
+        stale = (
+            bool(aircraft)
+            and not eligible
+            and all(a.position_age_seconds > self.settings.stale_position_seconds for a in aircraft)
+        )
         return {
-            "status": "ok",
+            "status": "ok" if primary else "waiting",
             "updated_at_utc": self.last_update.isoformat(),
-            "provider": {"name": self.settings.aircraft_provider, "stale": False},
-            "selection_mode": "manual" if self.manual_icao else "automatic",
+            "provider": {"name": self.settings.aircraft_provider, "stale": stale},
+            "selection_mode": "manual" if manual_icao and primary else "automatic",
             "primary": self._serialize(
                 primary, enriched.get(primary.aircraft.icao_hex) if primary else None
             )
@@ -38,13 +61,18 @@ class StateService:
             "nearby": [self._serialize(c, enriched.get(c.aircraft.icao_hex)) for c in eligible],
         }
 
-    def select_manual(self, icao_hex: str) -> None:
-        self.manual_icao = icao_hex.lower()
+    def select_manual(self, viewer_id: str, icao_hex: str | None = None) -> None:
+        if icao_hex is None:
+            icao_hex = viewer_id
+            viewer_id = "default"
+        self.manual_icao_by_viewer[viewer_id] = icao_hex.lower()
 
-    def resume_auto(self) -> None:
-        self.manual_icao = None
+    def resume_auto(self, viewer_id: str = "default") -> None:
+        self.manual_icao_by_viewer.pop(viewer_id, None)
 
-    def _serialize(self, candidate, enrichment) -> dict[str, object]:  # type: ignore[no-untyped-def]
+    def _serialize(
+        self, candidate: FlightCandidate, enrichment: EnrichedFlight | None
+    ) -> dict[str, Any]:
         aircraft = candidate.aircraft
         computed = candidate.computed
         speed_mph = (
