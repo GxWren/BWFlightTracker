@@ -1,0 +1,28 @@
+services:
+  app:
+    build: .
+    environment:
+      AIRCRAFT_PROVIDER: mock
+      DATABASE_URL: mysql+pymysql://bw:change-me@mysql:3306/bw_flight_tracker
+      HOME_LATITUDE: 41.88
+      HOME_LONGITUDE: -87.63
+    ports: ["8000:8000"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_DATABASE: bw_flight_tracker
+      MYSQL_USER: bw
+      MYSQL_PASSWORD: change-me
+      MYSQL_ROOT_PASSWORD: change-root
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - mysql-data:/var/lib/mysql
+volumes:
+  mysql-data:
