@@ -56,11 +56,14 @@ async def api_state() -> dict[str, object]:
 
 
 @app.get("/api/v1/events")
-async def events() -> StreamingResponse:
+async def events(request: Request) -> StreamingResponse:
     async def event_stream() -> AsyncIterator[str]:
-        while True:
+        while not await request.is_disconnected():
             yield f"event: state\ndata: {json.dumps(await state_service.current_state())}\n\n"
-            await asyncio.sleep(10)
+            for _ in range(10):
+                if await request.is_disconnected():
+                    return
+                await asyncio.sleep(1)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

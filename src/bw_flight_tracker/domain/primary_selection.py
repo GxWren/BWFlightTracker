@@ -73,3 +73,8 @@ class PrimarySelectionEngine:
         self.selected_at_utc = now
         self.challenger_counts.clear()
         return SelectionResult(candidate, "automatic", reason)
+
+    def reset(self) -> None:
+        self.current_icao = None
+        self.selected_at_utc = None
+        self.challenger_counts.clear()

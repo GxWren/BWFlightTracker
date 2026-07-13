@@ -5,19 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>document.documentElement.dataset.theme=localStorage.getItem('theme')||'system';</script>
   <title>BW Flight Tracker</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css?v=closest-button-1">
 </head>
 <body>
 <header><h1>BW Flight Tracker</h1><button class="theme-toggle" id="theme" type="button">Dark theme</button></header>
+<div class="loading-overlay" id="loading" role="status" aria-live="polite" hidden>
+  <div class="loading-dialog"><span></span>Loading Flight Info</div>
+</div>
 <main>
   <section class="board" aria-live="polite">
-    <p class="eyebrow" id="mode">Automatic selection</p>
+    <button class="closest-button" id="closest" type="button">Find Closest Aircraft</button>
     <h2 id="flight">Waiting for aircraft</h2>
     <div class="route"><span id="origin">—</span><span>→</span><span id="destination">—</span></div>
     <dl class="facts" id="facts"></dl>
   </section>
-  <section><h2>Nearby aircraft</h2><div id="nearby" class="nearby"></div></section>
+  <section><h2>Nearby Aircraft</h2><div id="nearby" class="nearby"></div></section>
 </main>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=closest-button-1"></script>
 </body>
 </html>

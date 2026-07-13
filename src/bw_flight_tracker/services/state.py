@@ -100,6 +100,7 @@ class StateService:
 
     def resume_auto(self, viewer_id: str = "default") -> None:
         self.manual_icao_by_viewer.pop(viewer_id, None)
+        self.selection_engine.reset()
 
     def _serialize(
         self, candidate: FlightCandidate, enrichment: EnrichedFlight | None

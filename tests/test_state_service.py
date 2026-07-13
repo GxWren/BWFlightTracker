@@ -95,3 +95,23 @@ def test_only_primary_aircraft_is_enriched() -> None:
         for aircraft in state["nearby"]  # type: ignore[union-attr]
         if aircraft["icao_hex"] != state["primary"]["icao_hex"]  # type: ignore[index]
     )
+
+
+def test_resume_auto_resets_selector_to_current_closest() -> None:
+    settings = Settings(
+        aircraft_provider="mock",
+        mock_scenario="multiple_competing",
+        home_latitude=41.88,
+        home_longitude=-87.63,
+        detection_radius_miles=10,
+    )
+    service = StateService(settings)
+    service.select_manual("viewer-a", "abc999")
+    manual_state = asyncio.run(service.current_state("viewer-a"))
+
+    service.resume_auto("viewer-a")
+    automatic_state = asyncio.run(service.current_state("viewer-a"))
+
+    assert manual_state["selection_mode"] == "manual"
+    assert automatic_state["selection_mode"] == "automatic"
+    assert automatic_state["primary"]["icao_hex"] == automatic_state["nearby"][0]["icao_hex"]  # type: ignore[index]

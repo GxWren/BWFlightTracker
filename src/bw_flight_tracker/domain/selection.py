@@ -146,4 +146,4 @@ def eligible_candidates(
         ):
             continue
         eligible.append(candidate)
-    return sorted(eligible, key=lambda c: c.computed.selection_score or float("inf"))
+    return sorted(eligible, key=lambda c: c.computed.horizontal_distance_miles)

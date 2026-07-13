@@ -67,3 +67,39 @@ def test_eligible_excludes_grounded_aircraft() -> None:
     )
 
     assert eligible_candidates([grounded], 10) == []
+
+
+def test_eligible_sorts_by_current_distance() -> None:
+    farther = compute_candidate(
+        AircraftState(
+            "far",
+            41.92,
+            -87.64,
+            datetime.now(UTC),
+            callsign="AAL123",
+            altitude_ft=5000,
+            ground_speed_knots=200,
+            track_degrees=180,
+        ),
+        41.88,
+        -87.63,
+    )
+    closer = compute_candidate(
+        AircraftState(
+            "near",
+            41.89,
+            -87.64,
+            datetime.now(UTC),
+            callsign="DAL123",
+            altitude_ft=5000,
+            ground_speed_knots=200,
+            track_degrees=0,
+        ),
+        41.88,
+        -87.63,
+    )
+
+    assert [c.aircraft.icao_hex for c in eligible_candidates([farther, closer], 10)] == [
+        "near",
+        "far",
+    ]

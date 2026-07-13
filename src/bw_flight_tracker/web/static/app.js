@@ -1,5 +1,9 @@
 const facts = document.querySelector('#facts');
 const themeButton = document.querySelector('#theme');
+const closestButton = document.querySelector('#closest');
+let loading = document.querySelector('#loading');
+const minimumLoadingMs = 700;
+let loadingStartedAt = 0;
 
 function setText(id, value){document.querySelector(id).textContent = value || '—'}
 function titleCase(value){
@@ -12,24 +16,80 @@ function compass(value){
 function airportCode(value){
   return value && typeof value === 'string' ? value.toUpperCase() : value;
 }
+function identifier(value){
+  return value && typeof value === 'string' ? value.toUpperCase() : value;
+}
 function setTheme(theme){
   document.documentElement.dataset.theme = theme;
   localStorage.setItem('theme', theme);
   themeButton.textContent = theme === 'dark' ? 'Light theme' : 'Dark theme';
 }
+function sleep(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+function nextFrame(){
+  return new Promise(resolve => requestAnimationFrame(() => resolve()));
+}
+async function showLoading(){
+  if(!loading){
+    loading = document.createElement('div');
+    loading.className = 'loading-overlay';
+    loading.id = 'loading';
+    loading.setAttribute('role', 'status');
+    loading.setAttribute('aria-live', 'polite');
+    loading.innerHTML = '<div class="loading-dialog"><span></span>Loading Flight Info</div>';
+    document.body.prepend(loading);
+  }
+  loadingStartedAt = Date.now();
+  loading.hidden = false;
+  document.body.dataset.loading = 'true';
+  await nextFrame();
+}
+async function hideLoading(){
+  const remaining = minimumLoadingMs - (Date.now() - loadingStartedAt);
+  if(remaining > 0) await sleep(remaining);
+  loading.hidden = true;
+  document.body.dataset.loading = 'false';
+}
+async function withLoading(work){
+  await showLoading();
+  try {
+    return await work();
+  } finally {
+    await hideLoading();
+  }
+}
 function render(state){
-  document.querySelector('#mode').textContent = state.selection_mode === 'manual' ? 'Manual selection' : 'Automatic selection';
   const p = state.primary;
   if(!p){ setText('#flight','Waiting for aircraft'); return; }
   setText('#flight', titleCase(p.airline_name || p.flight_identifier || p.callsign));
   setText('#origin', p.origin_code ? airportCode(p.origin_code) : 'Route'); setText('#destination', p.destination_code ? airportCode(p.destination_code) : 'Unavailable');
-  const rows = [['Flight',titleCase(p.flight_identifier)],['Origin city',titleCase(p.origin_city)],['Destination city',titleCase(p.destination_city)],['Aircraft',titleCase(p.aircraft_model)],['Tail',titleCase(p.registration)],['Altitude',p.altitude_ft !== null && p.altitude_ft !== undefined ? `${p.altitude_ft.toLocaleString()} ft`:null],['Speed',p.ground_speed_mph !== null && p.ground_speed_mph !== undefined ? `${p.ground_speed_mph} mph`:null],['Distance',`${p.distance_miles} mi ${compass(p.bearing_compass)}`],['State',titleCase(p.approach_state)],['Quality',titleCase(p.data_quality)]];
+  const rows = [['Flight',identifier(p.flight_identifier)],['Origin city',titleCase(p.origin_city)],['Destination city',titleCase(p.destination_city)],['Aircraft',titleCase(p.aircraft_model)],['Tail',identifier(p.registration)],['Altitude',p.altitude_ft !== null && p.altitude_ft !== undefined ? `${p.altitude_ft.toLocaleString()} ft`:null],['Speed',p.ground_speed_mph !== null && p.ground_speed_mph !== undefined ? `${p.ground_speed_mph} mph`:null],['Distance',`${p.distance_miles} mi ${compass(p.bearing_compass)}`],['State',titleCase(p.approach_state)],['Data Quality',titleCase(p.data_quality)]];
   facts.innerHTML = rows.filter(r=>r[1]).map(r=>`<div><dt>${r[0]}</dt><dd>${r[1]}</dd></div>`).join('');
   document.querySelector('#nearby').innerHTML = state.nearby.map(a=>`<button class="card" data-icao="${a.icao_hex}"><strong>${a.flight_identifier || a.callsign}</strong><br>${a.distance_miles} mi ${a.bearing_compass}<br>${a.altitude_ft || '—'} ft</button>`).join('');
-  document.querySelectorAll('[data-icao]').forEach(b=>b.addEventListener('click',()=>fetch('/api/v1/manual-selection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({icao_hex:b.dataset.icao})}).then(load)));
+  document.querySelectorAll('[data-icao]').forEach(b=>b.addEventListener('click',()=>selectAircraft(b.dataset.icao)));
 }
-async function load(){render(await (await fetch('/api/v1/state')).json())}
+async function fetchState(){
+  const response = await fetch('/api/v1/state');
+  render(await response.json());
+}
+async function load(){
+  await fetchState();
+}
+async function selectAircraft(icaoHex){
+  await withLoading(async()=>{
+    await fetch('/api/v1/manual-selection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({icao_hex:icaoHex})});
+    await fetchState();
+  });
+}
+async function findClosestAircraft(){
+  await withLoading(async()=>{
+    await fetch('/api/v1/manual-selection',{method:'DELETE'});
+    await fetchState();
+  });
+}
 if(window.EventSource){const es = new EventSource('/api/v1/events'); es.addEventListener('state', e=>render(JSON.parse(e.data))); es.onerror=()=>setTimeout(load,3000);} else {setInterval(load,10000);}
 setTheme(localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');
 themeButton.addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+closestButton.addEventListener('click',()=>findClosestAircraft());
 load();
