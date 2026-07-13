@@ -1,5 +1,12 @@
 const facts = document.querySelector('#facts');
+const themeButton = document.querySelector('#theme');
+
 function setText(id, value){document.querySelector(id).textContent = value || '—'}
+function setTheme(theme){
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('theme', theme);
+  themeButton.textContent = theme === 'dark' ? 'Light theme' : 'Dark theme';
+}
 function render(state){
   document.querySelector('#mode').textContent = state.selection_mode === 'manual' ? 'Manual selection' : 'Automatic selection';
   const p = state.primary;
@@ -13,5 +20,6 @@ function render(state){
 }
 async function load(){render(await (await fetch('/api/v1/state')).json())}
 if(window.EventSource){const es = new EventSource('/api/v1/events'); es.addEventListener('state', e=>render(JSON.parse(e.data))); es.onerror=()=>setTimeout(load,3000);} else {setInterval(load,10000);}
-document.querySelector('#theme').addEventListener('click',()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;localStorage.setItem('theme',n)});
+setTheme(localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');
+themeButton.addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
 load();
