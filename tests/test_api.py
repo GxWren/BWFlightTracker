@@ -1,4 +1,11 @@
+import os
+
 from fastapi.testclient import TestClient
+
+os.environ["AIRCRAFT_PROVIDER"] = "mock"
+os.environ["HOME_LATITUDE"] = "41.88"
+os.environ["HOME_LONGITUDE"] = "-87.63"
+os.environ["DETECTION_RADIUS_MILES"] = "10"
 
 from bw_flight_tracker.main import app
 

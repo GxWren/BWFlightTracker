@@ -1,11 +1,19 @@
 import asyncio
 
+import httpx
+
 from bw_flight_tracker.config import Settings
 from bw_flight_tracker.services.state import StateService
 
 
 def test_manual_selection_is_scoped_to_session() -> None:
-    settings = Settings(mock_scenario="multiple_competing")
+    settings = Settings(
+        aircraft_provider="mock",
+        mock_scenario="multiple_competing",
+        home_latitude=41.88,
+        home_longitude=-87.63,
+        detection_radius_miles=10,
+    )
     service = StateService(settings)
 
     default_state = asyncio.run(service.current_state("viewer-a"))
@@ -20,10 +28,33 @@ def test_manual_selection_is_scoped_to_session() -> None:
 
 
 def test_stale_provider_scenario_returns_waiting_state() -> None:
-    settings = Settings(mock_scenario="stale_provider")
+    settings = Settings(
+        aircraft_provider="mock",
+        mock_scenario="stale_provider",
+        home_latitude=41.88,
+        home_longitude=-87.63,
+        detection_radius_miles=10,
+    )
     service = StateService(settings)
     state = asyncio.run(service.current_state("viewer-a"))
 
     assert state["status"] == "waiting"
     assert state["primary"] is None
     assert state["provider"]["stale"] is True  # type: ignore[index]
+
+
+def test_provider_http_error_returns_waiting_state() -> None:
+    class FailingProvider:
+        async def fetch_aircraft(self) -> list[object]:
+            raise httpx.ConnectError("certificate verify failed")
+
+    settings = Settings(aircraft_provider="mock")
+    service = StateService(settings)
+    service.provider = FailingProvider()  # type: ignore[assignment]
+
+    state = asyncio.run(service.current_state("viewer-a"))
+
+    assert state["status"] == "waiting"
+    assert state["primary"] is None
+    assert state["provider"]["stale"] is True  # type: ignore[index]
+    assert state["provider"]["error"] == "provider_unavailable"  # type: ignore[index]

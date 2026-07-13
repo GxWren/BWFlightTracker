@@ -14,6 +14,8 @@ uvicorn bw_flight_tracker.main:app --reload
 
 Open <http://localhost:8000>. Use `AIRCRAFT_PROVIDER=mock` until Phase 2 live provider work begins. Set `MOCK_SCENARIO` to exercise the deterministic scenarios documented in `docs/mock-scenarios.md`.
 
+To test live telemetry, set `AIRCRAFT_PROVIDER=airplanes_live` in `.env` and restart Uvicorn. The app calls Airplanes.live's point endpoint near the configured home coordinates, then applies the local distance, freshness, altitude, and commercial-aircraft filters before rendering public state.
+
 ## Docker workflow
 
 ```bash

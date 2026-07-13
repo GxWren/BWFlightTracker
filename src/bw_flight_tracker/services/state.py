@@ -1,17 +1,24 @@
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
+
 from bw_flight_tracker.config import Settings
 from bw_flight_tracker.domain.models import EnrichedFlight, FlightCandidate
 from bw_flight_tracker.domain.primary_selection import PrimarySelectionEngine
 from bw_flight_tracker.domain.selection import compute_candidate, eligible_candidates
+from bw_flight_tracker.providers.airplanes_live import AirplanesLiveProvider
 from bw_flight_tracker.providers.mock import MockAircraftProvider, MockEnrichmentProvider
 
 
 class StateService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.provider = MockAircraftProvider(settings.mock_scenario)
+        self.provider = (
+            AirplanesLiveProvider(settings)
+            if settings.aircraft_provider == "airplanes_live"
+            else MockAircraftProvider(settings.mock_scenario)
+        )
         self.enrichment = MockEnrichmentProvider()
         self.manual_icao_by_viewer: dict[str, str] = {}
         self.selection_engine = PrimarySelectionEngine(
@@ -21,7 +28,12 @@ class StateService:
         self.last_update: datetime | None = None
 
     async def current_state(self, viewer_id: str = "default") -> dict[str, object]:
-        aircraft = await self.provider.fetch_aircraft()
+        provider_error: str | None = None
+        try:
+            aircraft = await self.provider.fetch_aircraft()
+        except httpx.HTTPError:
+            aircraft = []
+            provider_error = "provider_unavailable"
         fresh_aircraft = [
             a for a in aircraft if a.position_age_seconds <= self.settings.stale_position_seconds
         ]
@@ -51,7 +63,11 @@ class StateService:
         return {
             "status": "ok" if primary else "waiting",
             "updated_at_utc": self.last_update.isoformat(),
-            "provider": {"name": self.settings.aircraft_provider, "stale": stale},
+            "provider": {
+                "name": self.settings.aircraft_provider,
+                "stale": stale or provider_error is not None,
+                "error": provider_error,
+            },
             "selection_mode": "manual" if manual_icao and primary else "automatic",
             "primary": self._serialize(
                 primary, enriched.get(primary.aircraft.icao_hex) if primary else None

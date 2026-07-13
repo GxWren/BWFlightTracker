@@ -2,8 +2,8 @@
 
 | Requirement | Phase | Status | Implementation / tests |
 | --- | --- | --- | --- |
-| DATA-001 | 2 | Deferred | Provider boundary exists with mock provider; live Airplanes.live pending. |
-| DATA-002 | 2 | Partial | `AircraftState` normalizes callsign/ICAO; live payload adapter pending. |
+| DATA-001 | 2 | Implemented baseline | Provider boundary supports mock and Airplanes.live telemetry providers; mile-based local radius is rounded up for the Airplanes.live nautical-mile point endpoint. |
+| DATA-002 | 2 | Implemented baseline | `AirplanesLiveProvider` maps point payloads into `AircraftState`; invalid rows are skipped. |
 | DATA-010 | 3 | Deferred | Mock enrichment exists; ADSBDB adapter pending. |
 | DATA-011 | 1 | Partial | `classify_commercial` has baseline airline-prefix heuristic; configurable data source pending. |
 | DATA-020 | 4 | Deferred | Address/coordinate settings UI pending. |

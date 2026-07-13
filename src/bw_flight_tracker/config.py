@@ -22,6 +22,8 @@ class Settings(BaseSettings):
         "provider_recovery",
     ] = "multiple_competing"
     airplanes_live_base_url: str = "https://api.airplanes.live/v2/"
+    airplanes_live_verify_tls: bool = True
+    airplanes_live_ca_bundle: str | None = None
     enrichment_provider: Literal["mock", "disabled", "adsbdb"] = "mock"
     adsbdb_base_url: str = "https://api.adsbdb.com/v0/"
     geocoder_provider: str = "disabled"
@@ -33,7 +35,7 @@ class Settings(BaseSettings):
     time_zone: str = "America/Chicago"
     home_latitude: float = 41.88
     home_longitude: float = -87.63
-    detection_radius_miles: float = Field(default=10, ge=1, le=50)
+    detection_radius_miles: float = Field(default=10, ge=1, le=250)
     min_altitude_ft: int = 1000
     max_altitude_ft: int = 60000
     stale_position_seconds: float = Field(default=20, ge=5, le=120)
